@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Claims service (dev) on ECS Fargate behind ALB"
+Description: "Claims service ECS Fargate deployment for dev environment"
 
 Parameters:
   ProjectName:
@@ -10,66 +10,68 @@ Parameters:
     Default: dev
   ContainerImage:
     Type: String
-    Description: "ECR image URI for claims-service"
-  ContainerPort:
-    Type: Number
-    Default: 8080
+    Description: "Full ECR image URI with tag for claims-service"
   DesiredCount:
     Type: Number
     Default: 1
 
 Resources:
-  # Security group for ECS tasks - allow traffic only from ALB SG on app port
-  ClaimsServiceSecurityGroup:
+  # Security group for ECS tasks - allow HTTP from within VPC CIDR
+  ClaimsServiceTaskSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: !Sub "${ProjectName}-${Environment}-claims-svc-sg"
-      VpcId: !ImportValue
-        Fn::Sub: "${ProjectName}-VpcId"
+      GroupDescription: !Sub "${ProjectName}-${Environment}-claims-tasks-sg"
+      VpcId:
+        Fn::ImportValue: !Sub "${ProjectName}-VpcId"
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: !Ref ContainerPort
-          ToPort: !Ref ContainerPort
-          SourceSecurityGroupId: !ImportValue
-            Fn::Sub: "${ProjectName}-${Environment}-AlbSecurityGroupId"
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 10.0.0.0/16   # allow ALB and other resources in VPC
       SecurityGroupEgress:
         - IpProtocol: -1
           FromPort: 0
           ToPort: 0
           CidrIp: 0.0.0.0/0
       Tags:
-        - Key: Name
-          Value: !Sub "${ProjectName}-${Environment}-claims-svc-sg"
         - Key: Project
           Value: !Ref ProjectName
         - Key: Environment
           Value: !Ref Environment
+        - Key: Service
+          Value: claims
 
-  # Target group for the service
+  # Target group for claims-service
   ClaimsServiceTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      VpcId: !ImportValue
-        Fn::Sub: "${ProjectName}-VpcId"
       Name: !Sub "${ProjectName}-${Environment}-claims-tg"
-      Port: !Ref ContainerPort
       Protocol: HTTP
+      Port: 8080
       TargetType: ip
-      HealthCheckPath: "/health"
+      VpcId:
+        Fn::ImportValue: !Sub "${ProjectName}-VpcId"
       HealthCheckProtocol: HTTP
-      Matcher:
-        HttpCode: "200"
+      HealthCheckPath: /health
+      HealthCheckIntervalSeconds: 30
       HealthyThresholdCount: 2
       UnhealthyThresholdCount: 2
-      HealthCheckIntervalSeconds: 15
-      HealthCheckTimeoutSeconds: 5
+      Matcher:
+        HttpCode: "200-399"
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: claims
 
-  # Listener rule for /claims* paths
+  # Listener rule on dev ALB: /claims* -> this target group
   ClaimsServiceListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
-      ListenerArn: !ImportValue
-        Fn::Sub: "${ProjectName}-${Environment}-AlbListenerHttpArn"
+      ListenerArn:
+        Fn::ImportValue: !Sub "${ProjectName}-${Environment}-AlbListenerHttpArn"
       Priority: 10
       Conditions:
         - Field: path-pattern
@@ -79,7 +81,6 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref ClaimsServiceTargetGroup
 
-  # Task definition for claims service
   ClaimsServiceTaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
@@ -89,59 +90,59 @@ Resources:
       NetworkMode: awsvpc
       RequiresCompatibilities:
         - FARGATE
-      ExecutionRoleArn: !ImportValue
-        Fn::Sub: "${ProjectName}-${Environment}-EcsExecutionRoleArn"
-      TaskRoleArn: !ImportValue
-        Fn::Sub: "${ProjectName}-${Environment}-EcsTaskRoleArn"
+      ExecutionRoleArn:
+        Fn::ImportValue: !Sub "${ProjectName}-${Environment}-EcsExecutionRoleArn"
+      TaskRoleArn:
+        Fn::ImportValue: !Sub "${ProjectName}-${Environment}-EcsTaskRoleArn"
       ContainerDefinitions:
-        - Name: "claims-service"
+        - Name: claims-service
           Image: !Ref ContainerImage
           PortMappings:
-            - ContainerPort: !Ref ContainerPort
-              Protocol: tcp
+            - ContainerPort: 8080
           Essential: true
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group: !ImportValue
-                Fn::Sub: "${ProjectName}-${Environment}-EcsAppLogGroupName"
+              awslogs-group:
+                Fn::ImportValue: !Sub "${ProjectName}-${Environment}-EcsAppLogGroupName"
               awslogs-region: !Ref "AWS::Region"
-              awslogs-stream-prefix: "claims-service"
+              awslogs-stream-prefix: "claims"
 
-  # ECS Service
-  ClaimsService:
+  ClaimsServiceEcsService:
     Type: AWS::ECS::Service
     DependsOn:
       - ClaimsServiceListenerRule
     Properties:
       ServiceName: !Sub "${ProjectName}-${Environment}-claims-service"
-      Cluster: !ImportValue
-        Fn::Sub: "${ProjectName}-${Environment}-EcsClusterName"
-      DesiredCount: !Ref DesiredCount
+      Cluster:
+        Fn::ImportValue: !Sub "${ProjectName}-${Environment}-EcsClusterName"
       LaunchType: FARGATE
+      PlatformVersion: "LATEST"
+      DesiredCount: !Ref DesiredCount
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 50
       NetworkConfiguration:
         AwsvpcConfiguration:
           AssignPublicIp: DISABLED
-          Subnets:
-            - !ImportValue
-              Fn::Sub: "${ProjectName}-PrivateSubnet1Id"
-            - !ImportValue
-              Fn::Sub: "${ProjectName}-PrivateSubnet2Id"
           SecurityGroups:
-            - !Ref ClaimsServiceSecurityGroup
+            - !Ref ClaimsServiceTaskSecurityGroup
+          Subnets:
+            - Fn::ImportValue: !Sub "${ProjectName}-PrivateSubnet1Id"
+            - Fn::ImportValue: !Sub "${ProjectName}-PrivateSubnet2Id"
       LoadBalancers:
-        - ContainerName: "claims-service"
-          ContainerPort: !Ref ContainerPort
+        - ContainerName: claims-service
+          ContainerPort: 8080
           TargetGroupArn: !Ref ClaimsServiceTargetGroup
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Service
+          Value: claims
 
 Outputs:
   ClaimsServiceName:
     Description: "Name of the ECS service"
-    Value: !Ref ClaimsService
-
-  ClaimsServiceTargetGroupArn:
-    Description: "Target group ARN for the claims service"
-    Value: !Ref ClaimsServiceTargetGroup
+    Value: !Ref ClaimsServiceEcsService
