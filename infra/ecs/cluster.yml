@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "ECS Fargate cluster for one environment"
+Description: "Simple ECS Fargate cluster for one environment"
 
 Parameters:
   ProjectName:
@@ -14,12 +14,6 @@ Resources:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: !Sub "${ProjectName}-${Environment}-cluster"
-      CapacityProviders:
-        - FARGATE
-        - FARGATE_SPOT
-      DefaultCapacityProviderStrategy:
-        - CapacityProvider: FARGATE
-          Weight: 1
       Configuration:
         ExecuteCommandConfiguration:
           Logging: DEFAULT
