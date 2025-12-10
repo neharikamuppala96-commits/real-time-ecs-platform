@@ -1,0 +1,40 @@
+name: Deploy Dev ALB
+
+on:
+  workflow_dispatch:      # manual trigger
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/ecs/alb-dev.yml"
+
+jobs:
+  deploy-dev-alb:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Check AWS identity (debug)
+        run: aws sts get-caller-identity
+
+      - name: Deploy dev ALB stack with CloudFormation
+        run: |
+          aws cloudformation deploy \
+            --stack-name myapp-alb-dev \
+            --template-file infra/ecs/alb-dev.yml \
+            --parameter-overrides \
+              ProjectName=myapp \
+              Environment=dev \
+            --no-fail-on-empty-changeset
