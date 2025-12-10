@@ -72,7 +72,6 @@ Resources:
       AvailabilityZone: !Sub
         - "${AWS::Region}${Az1}"
         - { Az1: !FindInMap [RegionToAz, !Ref 'AWS::Region', AZ1] }
-
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
