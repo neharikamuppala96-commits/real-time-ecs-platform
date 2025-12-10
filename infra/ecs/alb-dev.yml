@@ -89,3 +89,10 @@ Outputs:
     Value: !Ref DevAlbListenerHttp
     Export:
       Name: !Sub "${ProjectName}-${Environment}-AlbListenerHttpArn"
+
+  DevAlbSecurityGroupId:
+    Description: "Security group ID of the dev ALB"
+    Value: !Ref DevAlbSecurityGroup
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-AlbSecurityGroupId"
+
