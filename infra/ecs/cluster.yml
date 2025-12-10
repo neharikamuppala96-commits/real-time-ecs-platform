@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "ECS Fargate cluster for one environment"
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: myapp
+  Environment:
+    Type: String
+    Default: dev
+
+Resources:
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "${ProjectName}-${Environment}-cluster"
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE
+          Weight: 1
+      Configuration:
+        ExecuteCommandConfiguration:
+          Logging: DEFAULT
+
+Outputs:
+  ECSClusterName:
+    Description: "Name of the ECS cluster"
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-EcsClusterName"
+
+  ECSClusterArn:
+    Description: "ARN of the ECS cluster"
+    Value: !GetAtt ECSCluster.Arn
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-EcsClusterArn"
