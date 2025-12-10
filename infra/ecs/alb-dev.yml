@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Application Load Balancer for myapp dev environment"
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: myapp
+  Environment:
+    Type: String
+    Default: dev
+
+Resources:
+  # Security group for the ALB - allows HTTP from anywhere
+  DevAlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub "${ProjectName}-${Environment}-alb-sg"
+      VpcId: !ImportValue
+        Fn::Sub: "${ProjectName}-VpcId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 0
+          ToPort: 0
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Environment}-alb-sg"
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # The Application Load Balancer in the public subnets
+  DevAlb:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub "${ProjectName}-${Environment}-alb"
+      Scheme: internet-facing
+      Type: application
+      IpAddressType: ipv4
+      SecurityGroups:
+        - !Ref DevAlbSecurityGroup
+      Subnets:
+        - !ImportValue
+          Fn::Sub: "${ProjectName}-PublicSubnet1Id"
+        - !ImportValue
+          Fn::Sub: "${ProjectName}-PublicSubnet2Id"
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # HTTP listener on port 80
+  DevAlbListenerHttp:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref DevAlb
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        # Temporary fixed response until we attach real target groups
+        - Type: fixed-response
+          FixedResponseConfig:
+            StatusCode: "404"
+            ContentType: "text/plain"
+            MessageBody: "No service configured yet"
+
+Outputs:
+  DevAlbArn:
+    Description: "ARN of the dev ALB"
+    Value: !Ref DevAlb
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-AlbArn"
+
+  DevAlbDnsName:
+    Description: "DNS name of the dev ALB"
+    Value: !GetAtt DevAlb.DNSName
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-AlbDnsName"
+
+  DevAlbListenerHttpArn:
+    Description: "ARN of the HTTP listener (port 80) on the dev ALB"
+    Value: !Ref DevAlbListenerHttp
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-AlbListenerHttpArn"
