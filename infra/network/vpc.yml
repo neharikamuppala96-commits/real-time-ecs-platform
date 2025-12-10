@@ -69,7 +69,10 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       CidrBlock: !Ref PublicSubnet1Cidr
-      AvailabilityZone: !Sub "${AWS::Region}${Fn::FindInMap [RegionToAz, !Ref 'AWS::Region', AZ1]}"
+      AvailabilityZone: !Sub
+        - "${AWS::Region}${Az1}"
+        - { Az1: !FindInMap [RegionToAz, !Ref 'AWS::Region', AZ1] }
+
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
@@ -80,7 +83,9 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       CidrBlock: !Ref PublicSubnet2Cidr
-      AvailabilityZone: !Sub "${AWS::Region}${Fn::FindInMap [RegionToAz, !Ref 'AWS::Region', AZ2]}"
+      AvailabilityZone: !Sub
+        - "${AWS::Region}${Az2}"
+        - { Az2: !FindInMap [RegionToAz, !Ref 'AWS::Region', AZ2] }
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
@@ -91,18 +96,23 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       CidrBlock: !Ref PrivateSubnet1Cidr
-      AvailabilityZone: !Sub "${AWS::Region}${Fn::FindInMap [RegionToAz, !Ref 'AWS::Region', AZ1]}"
+      AvailabilityZone: !Sub
+        - "${AWS::Region}${Az1}"
+        - { Az1: !FindInMap [RegionToAz, !Ref 'AWS::Region', AZ1] }
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
           Value: !Sub "${ProjectName}-private-az1"
+
 
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
       CidrBlock: !Ref PrivateSubnet2Cidr
-      AvailabilityZone: !Sub "${AWS::Region}${Fn::FindInMap [RegionToAz, !Ref 'AWS::Region', AZ2]}"
+      AvailabilityZone: !Sub
+        - "${AWS::Region}${Az2}"
+        - { Az2: !FindInMap [RegionToAz, !Ref 'AWS::Region', AZ2] }
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
