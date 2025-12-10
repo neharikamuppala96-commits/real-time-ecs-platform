@@ -1,0 +1,41 @@
+name: Deploy ECS Dev Cluster
+
+on:
+  workflow_dispatch:      # manual trigger
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/ecs/cluster.yml"
+
+jobs:
+  deploy-ecs-dev-cluster:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Check AWS identity (debug)
+        run: aws sts get-caller-identity
+
+      - name: Deploy ECS dev cluster stack with CloudFormation
+        run: |
+          aws cloudformation deploy \
+            --stack-name myapp-ecs-dev-cluster \
+            --template-file infra/ecs/cluster.yml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              ProjectName=myapp \
+              Environment=dev \
+            --no-fail-on-empty-changeset
