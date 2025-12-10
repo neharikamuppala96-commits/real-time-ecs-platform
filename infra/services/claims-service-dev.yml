@@ -118,6 +118,7 @@ Resources:
         Fn::ImportValue: !Sub "${ProjectName}-${Environment}-EcsClusterName"
       LaunchType: FARGATE
       PlatformVersion: "LATEST"
+      TaskDefinition: !Ref ClaimsServiceTaskDefinition
       DesiredCount: !Ref DesiredCount
       DeploymentConfiguration:
         MaximumPercent: 200
