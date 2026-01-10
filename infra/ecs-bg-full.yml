@@ -1,0 +1,9 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "ECS Blue/Green Platform - FROM SCRATCH (StateFarm style)"
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: real-time-ecs-platform
+
+Resources: {}
