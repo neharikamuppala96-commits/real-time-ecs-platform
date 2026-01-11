@@ -317,6 +317,44 @@ Resources:
           TargetGroupArn: !Ref TargetGroupBlue
       TaskDefinition: !Ref TaskDefinition
 
+  CodeDeployApp:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: !Sub "${ProjectName}-cd-app"
+      ComputePlatform: ECS
+
+  CodeDeployDG:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName: !Ref CodeDeployApp
+      DeploymentGroupName: !Sub "${ProjectName}-cd-dg"
+      ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
+
+      DeploymentStyle:
+        DeploymentType: BLUE_GREEN
+        DeploymentOption: WITH_TRAFFIC_CONTROL
+
+      BlueGreenDeploymentConfiguration:
+        TerminateBlueInstancesOnDeploymentSuccess:
+          Action: TERMINATE
+          TerminationWaitTimeInMinutes: 5
+
+      DeploymentConfigName: CodeDeployDefault.ECSAllAtOnce
+
+      ECSService:
+        ClusterName: !Ref Cluster
+        ServiceName: !GetAtt Service.Name
+
+      LoadBalancerInfo:
+        TargetGroupPairInfoList:
+          - TargetGroups:
+              - Name: !GetAtt TargetGroupBlue.TargetGroupName
+              - Name: !GetAtt TargetGroupGreen.TargetGroupName
+            ProdTrafficRoute:
+              ListenerArns:
+                - !Ref HttpListener
+
+
 
 
 
