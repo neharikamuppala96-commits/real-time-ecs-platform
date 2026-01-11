@@ -354,6 +354,32 @@ Resources:
               ListenerArns:
                 - !Ref HttpListener
 
+Outputs:
+  AlbDnsName:
+    Description: "Public URL for the Load Balancer"
+    Value: !GetAtt Alb.DNSName
+
+  EcrRepoUri:
+    Description: "ECR repository URI"
+    Value: !GetAtt EcrRepo.RepositoryUri
+
+  ClusterName:
+    Description: "ECS Cluster name"
+    Value: !Ref Cluster
+
+  ServiceName:
+    Description: "ECS Service name"
+    Value: !GetAtt Service.Name
+
+  CodeDeployAppName:
+    Description: "CodeDeploy Application name"
+    Value: !Ref CodeDeployApp
+
+  CodeDeployDGName:
+    Description: "CodeDeploy Deployment Group name"
+    Value: !Ref CodeDeployDG
+
+
 
 
 
