@@ -52,6 +52,7 @@ Resources:
                   - cloudformation:Describe*
                   - cloudformation:GetTemplate
                   - cloudformation:ValidateTemplate
+                  - cloudformation:GetTemplateSummary
                   - cloudformation:CreateChangeSet
                   - cloudformation:ExecuteChangeSet
                   - cloudformation:DescribeChangeSet
