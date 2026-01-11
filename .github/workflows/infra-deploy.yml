@@ -1,0 +1,49 @@
+name: Deploy Infra (CloudFormation)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra-deploy.yml"
+
+env:
+  AWS_REGION: us-east-1
+  STACK_NAME: real-time-ecs-platform-infra
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-infra:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC AssumeRole)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Validate CloudFormation template
+        run: |
+          aws cloudformation validate-template \
+            --template-body file://infra/ecs-bg-full.yml
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name "${STACK_NAME}" \
+            --template-file infra/ecs-bg-full.yml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Show stack outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name "${STACK_NAME}" \
+            --query "Stacks[0].Outputs" \
+            --output table
